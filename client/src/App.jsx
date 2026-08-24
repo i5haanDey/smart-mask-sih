@@ -8,8 +8,7 @@ import Navbar from './components/Navbar';
 import SOSStrip from './components/SOSStrip';
 import SOSAutoTrigger from './components/SOSAutoTrigger';
 import VoiceAutoStart from './components/VoiceAutoStart';
-import FakeCallPopup from './components/FakeCallPopup';
-import FakeCallTrigger from './components/FakeCallTrigger';
+
 
 function App() {
   return (
@@ -28,8 +27,7 @@ function App() {
         <Navbar />
         <VoiceAutoStart />
         <SOSAutoTrigger />
-        <FakeCallPopup />
-        <FakeCallTrigger />
+
       </div>
     </Router>
   );
