@@ -56,8 +56,11 @@ export default function VoiceAutoStart() {
 
     recognition.onresult = (event) => {
       const last = event.results[event.results.length - 1];
-      if (!last.isFinal) return;
       const text = last[0].transcript.toLowerCase().trim();
+
+      window.dispatchEvent(new CustomEvent('voice-transcript', { detail: { text, final: last.isFinal } }));
+
+      if (!last.isFinal) return;
 
       for (const [cmd, action] of Object.entries(COMMANDS)) {
         if (text.includes(cmd)) {

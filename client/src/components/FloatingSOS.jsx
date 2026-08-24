@@ -34,7 +34,7 @@ export default function FloatingSOS() {
       {/* Floating SOS Button */}
       <button
         onClick={() => setShow(true)}
-        className="fixed bottom-24 right-4 z-50 w-14 h-14 bg-red-600 rounded-full flex items-center justify-center shadow-lg shadow-red-600/30 hover:bg-red-500 active:scale-90 transition border-2 border-red-400"
+        className="fixed bottom-36 right-4 z-50 w-12 h-12 bg-red-600 rounded-full flex items-center justify-center shadow-lg shadow-red-600/30 hover:bg-red-500 active:scale-90 transition border-2 border-red-400"
       >
         <AlertTriangle size={24} className="text-white" />
       </button>
@@ -57,7 +57,7 @@ export default function FloatingSOS() {
                 </div>
                 <p className="text-lg font-bold text-red-400">SOS Sent!</p>
                 <p className="text-gray-400 text-sm mt-1">Emergency contacts notified</p>
-                <p className="text-gray-500 text-xs mt-1">Location: 28.6139 N, 77.2090 E</p>
+                <p className="text-gray-500 text-xs mt-1">Location: 12.9692 N, 79.1559 E</p>
                 <button onClick={cancel} className="mt-4 px-6 py-2 bg-gray-800 rounded-lg text-sm hover:bg-gray-700">
                   Close
                 </button>

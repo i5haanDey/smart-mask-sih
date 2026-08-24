@@ -8,11 +8,13 @@ import Navbar from './components/Navbar';
 import SOSStrip from './components/SOSStrip';
 import SOSAutoTrigger from './components/SOSAutoTrigger';
 import VoiceAutoStart from './components/VoiceAutoStart';
+import FakeCallPopup from './components/FakeCallPopup';
+import FakeCallTrigger from './components/FakeCallTrigger';
 
 function App() {
   return (
     <Router>
-      <div className="h-screen flex flex-col bg-gray-950 text-white overflow-hidden">
+      <div className="h-screen w-screen flex flex-col bg-gray-950 text-white overflow-hidden">
         <SOSStrip />
         <div className="flex-1 min-h-0 pt-7 pb-16 overflow-hidden">
           <Routes>
@@ -26,6 +28,8 @@ function App() {
         <Navbar />
         <VoiceAutoStart />
         <SOSAutoTrigger />
+        <FakeCallPopup />
+        <FakeCallTrigger />
       </div>
     </Router>
   );

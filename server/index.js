@@ -1,14 +1,171 @@
+require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const Database = require('better-sqlite3');
 const path = require('path');
+const { SerialPort } = require('serialport');
+const { DeepgramClient } = require('@deepgram/sdk');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
+});
+
+// ============ VOICE / DEEPGRAM / USB ESP32 ============
+
+const deepgram = new DeepgramClient({
+  apiKey: process.env.DEEPGRAM_API_KEY
+});
+
+// Change COM3 to the actual COM port of your ESP32
+const ESP32_PORT = 'COM3';
+
+const esp32 = new SerialPort({
+  path: ESP32_PORT,
+  baudRate: 921600
+});
+
+console.log(`Opening ESP32 on ${ESP32_PORT}...`);
+
+let deepgramConnection = null;
+
+async function startVoiceRecognition() {
+
+  try {
+
+    deepgramConnection = await deepgram.listen.v1.connect({
+      model: 'nova-3',
+      language: 'en-IN',
+
+      encoding: 'linear16',
+      channels: 1,
+      sample_rate: 16000,
+
+      smart_format: true,
+      interim_results: true,
+      endpointing: 300,
+      vad_events: true
+    });
+
+    deepgramConnection.on('open', () => {
+      console.log('Deepgram connection opened');
+      console.log('Ready to receive microphone audio');
+    });
+
+    deepgramConnection.on('message', (data) => {
+
+      if (data.type !== 'Results') {
+        return;
+      }
+
+      const transcript =
+        data.channel?.alternatives?.[0]?.transcript || '';
+
+      if (!transcript) {
+        return;
+      }
+
+      console.log('VOICE:', transcript);
+
+      // Send text to website
+      io.emit('voice_transcript', {
+        text: transcript,
+        isFinal: data.is_final || false
+      });
+
+      // Check ACCEPT / REJECT
+      const command = transcript.toLowerCase();
+
+      if (command.includes('accept')) {
+
+        console.log('>>> ACCEPT COMMAND');
+
+        io.emit('voice_command', {
+          command: 'ACCEPT',
+          text: transcript
+        });
+
+      } else if (command.includes('reject')) {
+
+        console.log('>>> REJECT COMMAND');
+
+        io.emit('voice_command', {
+          command: 'REJECT',
+          text: transcript
+        });
+
+      }
+
+    });
+
+    deepgramConnection.on('error', (error) => {
+      console.error('Deepgram error:', error);
+    });
+
+    deepgramConnection.on('close', () => {
+      console.log('Deepgram connection closed');
+    });
+
+    deepgramConnection.connect();
+
+    await deepgramConnection.waitForOpen();
+
+  } catch (error) {
+
+    console.error(
+      'Failed to start Deepgram:',
+      error
+    );
+
+  }
+}
+
+
+// ==========================================
+// RECEIVE AUDIO FROM ESP32 THROUGH USB
+// ==========================================
+
+esp32.on('open', () => {
+
+  console.log(
+    `ESP32 connected through ${ESP32_PORT}`
+  );
+
+  startVoiceRecognition();
+
+});
+
+
+esp32.on('data', (data) => {
+
+  if (!deepgramConnection) {
+    return;
+  }
+
+  // Send raw PCM audio directly to Deepgram
+  deepgramConnection.sendMedia(data);
+
+});
+
+
+esp32.on('error', (error) => {
+
+  console.error(
+    'ESP32 serial error:',
+    error.message
+  );
+
+});
+
+
+esp32.on('close', () => {
+
+  console.log('ESP32 serial connection closed');
+
 });
 
 app.use(cors());
@@ -39,8 +196,8 @@ if (!existingUser) {
 }
 
 // ============ MOCK GENERATORS ============
-const BASE_LAT = 28.6139;
-const BASE_LNG = 77.2090;
+const BASE_LAT = 12.9692;
+const BASE_LNG = 79.1559;
 
 function generateAQI() {
   const pm25 = Math.round(30 + Math.random() * 270);

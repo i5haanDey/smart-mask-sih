@@ -4,8 +4,8 @@ import { useDeviceMotion } from '../hooks/useDeviceMotion';
 import { findNearestPolice } from '../utils/location';
 
 const COUNTDOWN_SECONDS = 10;
-const DEFAULT_LAT = 28.6139;
-const DEFAULT_LNG = 77.2090;
+const DEFAULT_LAT = 12.9692;
+const DEFAULT_LNG = 79.1559;
 
 export default function SOSAutoTrigger() {
   const [phase, setPhase] = useState('idle'); // idle, countdown, active, sent
