@@ -14,6 +14,7 @@ export default function VoiceMicButton() {
     try { recognitionRef.current?.stop(); } catch (e) {}
     setListening(false);
     setInterim('');
+    window.dispatchEvent(new CustomEvent('mic-stop'));
   }, []);
 
   const startListening = useCallback(() => {
@@ -22,6 +23,8 @@ export default function VoiceMicButton() {
       alert('Speech recognition not supported in this browser');
       return;
     }
+
+    window.dispatchEvent(new CustomEvent('mic-start'));
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
@@ -47,10 +50,13 @@ export default function VoiceMicButton() {
       setInterim(interimText);
     };
 
-    recognition.onerror = () => {
-      listeningRef.current = false;
-      setListening(false);
-      setInterim('');
+    recognition.onerror = (e) => {
+      if (e.error !== 'aborted') {
+        listeningRef.current = false;
+        setListening(false);
+        setInterim('');
+        window.dispatchEvent(new CustomEvent('mic-stop'));
+      }
     };
 
     recognition.onend = () => {
@@ -69,7 +75,11 @@ export default function VoiceMicButton() {
   }, []);
 
   useEffect(() => {
-    return () => { listeningRef.current = false; try { recognitionRef.current?.stop(); } catch (e) {} };
+    return () => {
+      listeningRef.current = false;
+      try { recognitionRef.current?.stop(); } catch (e) {}
+      window.dispatchEvent(new CustomEvent('mic-stop'));
+    };
   }, []);
 
   const toggle = () => {

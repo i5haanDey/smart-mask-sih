@@ -38,6 +38,7 @@ export default function VoiceAutoStart() {
   const recognitionRef = useRef(null);
   const [active, setActive] = useState(false);
   const [lastCommand, setLastCommand] = useState('');
+  const pausedRef = useRef(false);
 
   const showFeedback = useCallback((msg) => {
     setLastCommand(msg);
@@ -55,6 +56,7 @@ export default function VoiceAutoStart() {
     recognitionRef.current = recognition;
 
     recognition.onresult = (event) => {
+      if (pausedRef.current) return;
       const last = event.results[event.results.length - 1];
       const text = last[0].transcript.toLowerCase().trim();
 
@@ -94,39 +96,58 @@ export default function VoiceAutoStart() {
     };
 
     recognition.onerror = () => {
+      if (pausedRef.current) return;
       setActive(false);
-      // Auto-restart after error
       setTimeout(() => {
-        try { recognition.start(); setActive(true); } catch(e) {}
+        if (!pausedRef.current) {
+          try { recognition.start(); setActive(true); } catch(e) {}
+        }
       }, 1000);
     };
 
     recognition.onend = () => {
-      // Auto-restart to keep it always on
+      if (pausedRef.current) return;
       setTimeout(() => {
-        try { recognition.start(); } catch(e) {}
+        if (!pausedRef.current) {
+          try { recognition.start(); } catch(e) {}
+        }
       }, 100);
     };
 
-    // Auto-start
+    const handleMicStart = () => {
+      pausedRef.current = true;
+      try { recognition.stop(); } catch(e) {}
+      setActive(false);
+    };
+
+    const handleMicStop = () => {
+      pausedRef.current = false;
+      setTimeout(() => {
+        try { recognition.start(); setActive(true); } catch(e) {}
+      }, 200);
+    };
+
+    window.addEventListener('mic-start', handleMicStart);
+    window.addEventListener('mic-stop', handleMicStop);
+
     try {
       recognition.start();
       setActive(true);
     } catch(e) {}
 
     return () => {
+      window.removeEventListener('mic-start', handleMicStart);
+      window.removeEventListener('mic-stop', handleMicStop);
       try { recognition.stop(); } catch(e) {}
     };
   }, [navigate, showFeedback]);
 
   return (
     <>
-      {/* Voice active indicator */}
       <div className="fixed top-8 right-3 z-[60]">
         <div className={`w-2.5 h-2.5 rounded-full ${active ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
       </div>
 
-      {/* Command feedback toast */}
       {lastCommand && (
         <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[70] bg-cyan-600/90 backdrop-blur-sm text-white text-xs font-medium px-4 py-2 rounded-full shadow-lg animate-bounce">
           {lastCommand}
