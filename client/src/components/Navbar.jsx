@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { Home, Box, DollarSign, Shield, User } from 'lucide-react';
+import VoiceMicButton from './VoiceMicButton';
 
 const links = [
   { to: '/', icon: Home, label: 'Home' },
@@ -27,6 +28,7 @@ export default function Navbar() {
             <span className="font-medium">{label}</span>
           </NavLink>
         ))}
+        <VoiceMicButton />
       </div>
     </nav>
   );

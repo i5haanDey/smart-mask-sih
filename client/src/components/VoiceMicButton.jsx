@@ -7,8 +7,10 @@ export default function VoiceMicButton() {
   const [interim, setInterim] = useState('');
   const [history, setHistory] = useState([]);
   const recognitionRef = useRef(null);
+  const listeningRef = useRef(false);
 
   const stopListening = useCallback(() => {
+    listeningRef.current = false;
     try { recognitionRef.current?.stop(); } catch (e) {}
     setListening(false);
     setInterim('');
@@ -46,26 +48,28 @@ export default function VoiceMicButton() {
     };
 
     recognition.onerror = () => {
+      listeningRef.current = false;
       setListening(false);
       setInterim('');
     };
 
     recognition.onend = () => {
-      if (listening) {
+      if (listeningRef.current) {
         try { recognition.start(); } catch (e) {}
       }
     };
 
     try {
+      listeningRef.current = true;
       recognition.start();
       setListening(true);
       setTranscript('');
       setInterim('');
     } catch (e) {}
-  }, [listening]);
+  }, []);
 
   useEffect(() => {
-    return () => { try { recognitionRef.current?.stop(); } catch (e) {} };
+    return () => { listeningRef.current = false; try { recognitionRef.current?.stop(); } catch (e) {} };
   }, []);
 
   const toggle = () => {
@@ -75,16 +79,9 @@ export default function VoiceMicButton() {
 
   return (
     <>
-      <button
-        onClick={toggle}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-          listening
-            ? 'bg-red-500 text-white shadow-lg shadow-red-500/25 animate-pulse'
-            : 'bg-gray-800/80 text-gray-400 hover:bg-gray-700'
-        }`}
-      >
-        {listening ? <MicOff size={14} /> : <Mic size={14} />}
-        {listening ? 'Stop' : 'Mic'}
+      <button onClick={toggle} className="flex flex-col items-center gap-1 text-xs px-3 py-1.5 rounded-xl transition text-gray-500 hover:text-gray-300">
+        {listening ? <MicOff size={22} className="text-red-400 animate-pulse" /> : <Mic size={22} />}
+        <span className={`font-medium ${listening ? 'text-red-400' : ''}`}>{listening ? 'Stop' : 'Mic'}</span>
       </button>
 
       {listening && (

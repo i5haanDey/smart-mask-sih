@@ -4,7 +4,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useSocket } from '../hooks/useSocket';
 import { Car, Wind, Eye, DollarSign, MapPin, Clock, Navigation } from 'lucide-react';
-import VoiceMicButton from '../components/VoiceMicButton';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -210,7 +209,6 @@ export default function Home() {
             <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full animate-pulse border-2 border-gray-950" />
           )}
         </button>
-        <VoiceMicButton />
       </div>
 
       {/* BOTTOM SECTION — wrapped in clipping div */}
