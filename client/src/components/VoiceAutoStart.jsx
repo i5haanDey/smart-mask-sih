@@ -33,9 +33,27 @@ const COMMANDS = {
   'help': '__HELP__',
 };
 
+let recognitionInstance = null;
+let micMode = false;
+
+export function startMicCapture() {
+  micMode = true;
+  window.dispatchEvent(new CustomEvent('mic-started'));
+  if (recognitionInstance) {
+    try { recognitionInstance.stop(); } catch(e) {}
+  }
+}
+
+export function stopMicCapture() {
+  micMode = false;
+  window.dispatchEvent(new CustomEvent('mic-stopped'));
+  if (recognitionInstance) {
+    try { recognitionInstance.start(); } catch(e) {}
+  }
+}
+
 export default function VoiceAutoStart() {
   const navigate = useNavigate();
-  const recognitionRef = useRef(null);
   const [active, setActive] = useState(false);
   const [lastCommand, setLastCommand] = useState('');
   const pausedRef = useRef(false);
@@ -51,84 +69,77 @@ export default function VoiceAutoStart() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = 'en-IN';
-    recognitionRef.current = recognition;
+    recognitionInstance = recognition;
 
     recognition.onresult = (event) => {
-      if (pausedRef.current) return;
-      const last = event.results[event.results.length - 1];
-      const text = last[0].transcript.toLowerCase().trim();
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const t = event.results[i][0].transcript;
+        const isFinal = event.results[i].isFinal;
 
-      window.dispatchEvent(new CustomEvent('voice-transcript', { detail: { text, final: last.isFinal } }));
+        if (micMode) {
+          window.dispatchEvent(new CustomEvent('mic-transcript', {
+            detail: { text: t.trim(), final: isFinal }
+          }));
+          continue;
+        }
 
-      if (!last.isFinal) return;
+        const text = t.toLowerCase().trim();
+        window.dispatchEvent(new CustomEvent('voice-transcript', { detail: { text, final: isFinal } }));
 
-      for (const [cmd, action] of Object.entries(COMMANDS)) {
-        if (text.includes(cmd)) {
-          if (action.startsWith('/')) {
-            navigate(action);
-            showFeedback(`Navigating to ${cmd}`);
-          } else if (action === '__ACCEPT_CALL__') {
-            window.dispatchEvent(new CustomEvent('voice-command', { detail: { command: 'accept' } }));
-            showFeedback('Call Accepted');
-          } else if (action === '__REJECT_CALL__') {
-            window.dispatchEvent(new CustomEvent('voice-command', { detail: { command: 'reject' } }));
-            showFeedback('Call Rejected');
-          } else if (action === '__SOS__') {
-            window.dispatchEvent(new CustomEvent('voice-command', { detail: { command: 'sos' } }));
-            showFeedback('SOS Activated');
-          } else if (action === '__CANCEL_SOS__') {
-            window.dispatchEvent(new CustomEvent('voice-command', { detail: { command: 'cancel-sos' } }));
-            showFeedback('SOS Cancelled');
-          } else if (action === '__SHOW_OFFERS__') {
-            window.dispatchEvent(new CustomEvent('voice-command', { detail: { command: 'show-offers' } }));
-            showFeedback('Showing Offers');
-          } else if (action === '__SHOW_MAP__') {
-            window.dispatchEvent(new CustomEvent('voice-command', { detail: { command: 'show-map' } }));
-            showFeedback('Showing Map');
-          } else if (action === '__HELP__') {
-            showFeedback('Say: home, filter, earnings, safety, profile, accept, reject, sos, show offers, show map');
+        if (!isFinal) continue;
+
+        for (const [cmd, action] of Object.entries(COMMANDS)) {
+          if (text.includes(cmd)) {
+            if (action.startsWith('/')) {
+              navigate(action);
+              showFeedback(`Navigating to ${cmd}`);
+            } else if (action === '__ACCEPT_CALL__') {
+              window.dispatchEvent(new CustomEvent('voice-command', { detail: { command: 'accept' } }));
+              showFeedback('Call Accepted');
+            } else if (action === '__REJECT_CALL__') {
+              window.dispatchEvent(new CustomEvent('voice-command', { detail: { command: 'reject' } }));
+              showFeedback('Call Rejected');
+            } else if (action === '__SOS__') {
+              window.dispatchEvent(new CustomEvent('voice-command', { detail: { command: 'sos' } }));
+              showFeedback('SOS Activated');
+            } else if (action === '__CANCEL_SOS__') {
+              window.dispatchEvent(new CustomEvent('voice-command', { detail: { command: 'cancel-sos' } }));
+              showFeedback('SOS Cancelled');
+            } else if (action === '__SHOW_OFFERS__') {
+              window.dispatchEvent(new CustomEvent('voice-command', { detail: { command: 'show-offers' } }));
+              showFeedback('Showing Offers');
+            } else if (action === '__SHOW_MAP__') {
+              window.dispatchEvent(new CustomEvent('voice-command', { detail: { command: 'show-map' } }));
+              showFeedback('Showing Map');
+            } else if (action === '__HELP__') {
+              showFeedback('Say: home, filter, earnings, safety, profile, accept, reject, sos, show offers, show map');
+            }
+            break;
           }
-          break;
         }
       }
     };
 
-    recognition.onerror = () => {
-      if (pausedRef.current) return;
+    recognition.onerror = (e) => {
+      if (e.error === 'aborted' || micMode) return;
       setActive(false);
       setTimeout(() => {
-        if (!pausedRef.current) {
+        if (!micMode) {
           try { recognition.start(); setActive(true); } catch(e) {}
         }
       }, 1000);
     };
 
     recognition.onend = () => {
-      if (pausedRef.current) return;
+      if (micMode) return;
       setTimeout(() => {
-        if (!pausedRef.current) {
+        if (!micMode) {
           try { recognition.start(); } catch(e) {}
         }
       }, 100);
     };
-
-    const handleMicStart = () => {
-      pausedRef.current = true;
-      try { recognition.stop(); } catch(e) {}
-      setActive(false);
-    };
-
-    const handleMicStop = () => {
-      pausedRef.current = false;
-      setTimeout(() => {
-        try { recognition.start(); setActive(true); } catch(e) {}
-      }, 200);
-    };
-
-    window.addEventListener('mic-start', handleMicStart);
-    window.addEventListener('mic-stop', handleMicStop);
 
     try {
       recognition.start();
@@ -136,16 +147,15 @@ export default function VoiceAutoStart() {
     } catch(e) {}
 
     return () => {
-      window.removeEventListener('mic-start', handleMicStart);
-      window.removeEventListener('mic-stop', handleMicStop);
       try { recognition.stop(); } catch(e) {}
+      recognitionInstance = null;
     };
   }, [navigate, showFeedback]);
 
   return (
     <>
       <div className="fixed top-8 right-3 z-[60]">
-        <div className={`w-2.5 h-2.5 rounded-full ${active ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+        <div className={`w-2.5 h-2.5 rounded-full ${active && !micMode ? 'bg-green-500 animate-pulse' : micMode ? 'bg-red-500 animate-pulse' : 'bg-red-500'}`} />
       </div>
 
       {lastCommand && (

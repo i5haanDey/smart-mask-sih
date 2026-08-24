@@ -1,90 +1,46 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Mic, MicOff, X } from 'lucide-react';
+import { startMicCapture, stopMicCapture } from './VoiceAutoStart';
 
 export default function VoiceMicButton() {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interim, setInterim] = useState('');
   const [history, setHistory] = useState([]);
-  const recognitionRef = useRef(null);
-  const listeningRef = useRef(false);
-
-  const stopListening = useCallback(() => {
-    listeningRef.current = false;
-    try { recognitionRef.current?.stop(); } catch (e) {}
-    setListening(false);
-    setInterim('');
-    window.dispatchEvent(new CustomEvent('mic-stop'));
-  }, []);
-
-  const startListening = useCallback(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Speech recognition not supported in this browser');
-      return;
-    }
-
-    window.dispatchEvent(new CustomEvent('mic-start'));
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-IN';
-    recognitionRef.current = recognition;
-
-    recognition.onresult = (event) => {
-      let interimText = '';
-      let finalText = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const t = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalText += t;
-        } else {
-          interimText += t;
-        }
-      }
-      if (finalText) {
-        setTranscript(finalText.trim());
-        setHistory(prev => [...prev, finalText.trim()].slice(-20));
-      }
-      setInterim(interimText);
-    };
-
-    recognition.onerror = (e) => {
-      if (e.error !== 'aborted') {
-        listeningRef.current = false;
-        setListening(false);
-        setInterim('');
-        window.dispatchEvent(new CustomEvent('mic-stop'));
-      }
-    };
-
-    recognition.onend = () => {
-      if (listeningRef.current) {
-        try { recognition.start(); } catch (e) {}
-      }
-    };
-
-    try {
-      listeningRef.current = true;
-      recognition.start();
-      setListening(true);
-      setTranscript('');
-      setInterim('');
-    } catch (e) {}
-  }, []);
 
   useEffect(() => {
+    const handleStarted = () => setListening(true);
+    const handleStopped = () => { setListening(false); setInterim(''); };
+    const handleTranscript = (e) => {
+      const { text, final: isFinal } = e.detail;
+      if (isFinal) {
+        setTranscript(text);
+        setHistory(prev => [...prev, text].slice(-20));
+        setInterim('');
+      } else {
+        setInterim(text);
+      }
+    };
+
+    window.addEventListener('mic-started', handleStarted);
+    window.addEventListener('mic-stopped', handleStopped);
+    window.addEventListener('mic-transcript', handleTranscript);
     return () => {
-      listeningRef.current = false;
-      try { recognitionRef.current?.stop(); } catch (e) {}
-      window.dispatchEvent(new CustomEvent('mic-stop'));
+      window.removeEventListener('mic-started', handleStarted);
+      window.removeEventListener('mic-stopped', handleStopped);
+      window.removeEventListener('mic-transcript', handleTranscript);
     };
   }, []);
 
   const toggle = () => {
-    if (listening) stopListening();
-    else startListening();
+    if (listening) {
+      stopMicCapture();
+    } else {
+      setHistory([]);
+      setTranscript('');
+      setInterim('');
+      startMicCapture();
+    }
   };
 
   return (
@@ -102,7 +58,7 @@ export default function VoiceMicButton() {
                 <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
                 <span className="text-sm font-semibold text-white">Listening...</span>
               </div>
-              <button onClick={stopListening} className="text-gray-400 hover:text-white">
+              <button onClick={stopMicCapture} className="text-gray-400 hover:text-white">
                 <X size={18} />
               </button>
             </div>
